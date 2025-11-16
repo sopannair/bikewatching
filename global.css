@@ -1,6 +1,6 @@
 :root {
-  --color-arrivals: steelblue;     /* steel blue */
-  --color-departures: darkorange;   /* dark orange */
+  --color-arrivals: darkorange;     /* steel blue */
+  --color-departures: steelblue;   /* dark orange */
 }
 
 /* Compute color on each legend item, not at :root */
