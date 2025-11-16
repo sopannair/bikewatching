@@ -9,3 +9,23 @@ body {
   padding: 1em;
 }
 
+header {
+  display: flex;
+  gap: 1em;
+  align-items: baseline;
+  padding: 0.5rem 1rem;
+}
+
+header label {
+  margin-left: auto;
+}
+
+header label time,
+header label em {
+  display: block;
+}
+
+header label em {
+  color: #777;
+  font-style: italic;
+}

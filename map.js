@@ -24,8 +24,33 @@ function getCoords(station) {
   return { cx: x, cy: y }; // Return as object for use in SVG attributes
 }
 
-map.on('load', async () => {
+function formatTime(minutes) {
+  const date = new Date(0, 0, 0, 0, minutes); // Set hours & minutes
+  return date.toLocaleString('en-US', { timeStyle: 'short' }); // Format as HH:MM AM/PM
+}
 
+function computeStationTraffic(stations, trips) {
+    const departures = d3.rollup(
+    trips,
+    (v) => v.length,
+    (d) => d.start_station_id,
+    );
+
+    const arrivals = d3.rollup(
+    trips,
+    (v) => v.length,
+    (d) => d.end_station_id,
+    );
+
+    stations.forEach((station) => {
+    const id = station.short_name;
+    station.arrivals     = arrivals.get(id) ?? 0;
+    station.departures   = departures.get(id) ?? 0;
+    station.totalTraffic = station.arrivals + station.departures;
+    });
+}
+
+map.on('load', async () => {
   // 1. Boston bike network source
   map.addSource('boston_route', {
     type: 'geojson',
@@ -62,58 +87,128 @@ map.on('load', async () => {
     },
   });
   let jsonData;
-  try {
+  
+    try {
+    // --- Load stations & trips ---
     const jsonurl = 'https://dsc106.com/labs/lab07/data/bluebikes-stations.json';
-    const svg = d3.select('#map').select('svg');
-    
+    const csvurl  = 'https://dsc106.com/labs/lab07/data/bluebikes-traffic-2024-03.csv';
 
-
-
-
-
-
-
-    // Await JSON fetch
     const jsonData = await d3.json(jsonurl);
+    let trips = await d3.csv(csvurl, (trip) => {
+      trip.started_at = new Date(trip.started_at);
+      trip.ended_at = new Date(trip.ended_at);
+      return trip;
+    });
 
-    console.log('Loaded JSON Data:', jsonData); // Log to verify structure
     let stations = jsonData.data.stations;
-    console.log('Stations Array:', stations);
-    // Append circles to the SVG for each station
-const circles = svg
-  .selectAll('circle')
-  .data(stations)
-  .enter()
-  .append('circle')
-  .attr('r', 5) // Radius of the circle
-  .attr('fill', 'steelblue') // Circle fill color
-  .attr('stroke', 'white') // Circle border color
-  .attr('stroke-width', 1) // Circle border thickness
-  .attr('opacity', 0.8); // Circle opacity
-  // Function to update circle positions when the map moves/zooms
-function updatePositions() {
-  circles
-    .attr('cx', (d) => getCoords(d).cx) // Set the x-position using projected coordinates
-    .attr('cy', (d) => getCoords(d).cy); // Set the y-position using projected coordinates
-}
 
-// Initial position update when map loads
-updatePositions();
+    // --- Helpers for time filtering ---
+    function minutesSinceMidnight(date) {
+      return date.getHours() * 60 + date.getMinutes();
+    }
 
-map.on('move', updatePositions); // Update during map movement
-map.on('zoom', updatePositions); // Update during zooming
-map.on('resize', updatePositions); // Update on window resize
-map.on('moveend', updatePositions); // Final adjustment after movement ends
+    function filterTripsByTime(trips, timeFilter) {
+      if (timeFilter === -1) return trips; // no filtering
 
+      return trips.filter((trip) => {
+        const startedMinutes = minutesSinceMidnight(trip.started_at);
+        const endedMinutes   = minutesSinceMidnight(trip.ended_at);
+
+        // within ±60 minutes of selected time
+        return (
+          Math.abs(startedMinutes - timeFilter) <= 60 ||
+          Math.abs(endedMinutes - timeFilter) <= 60
+        );
+      });
+    }
+
+    // --- Initial traffic using ALL trips ---
+    computeStationTraffic(stations, trips);
+
+    // --- Radius scale ---
+    const radiusScale = d3
+      .scaleSqrt()
+      .domain([0, d3.max(stations, (d) => d.totalTraffic)])
+      .range([0, 25]);
+
+    const svg = d3.select('#map').select('svg');
+
+    // --- Draw circles once ---
+    const circles = svg
+      .selectAll('circle')
+      .data(stations, (d) => d.short_name)
+      .enter()
+      .append('circle')
+      .attr('fill', 'steelblue')
+      .attr('stroke', 'white')
+      .attr('stroke-width', 1)
+      .attr('opacity', 0.8)
+      .style('pointer-events', 'auto') // keep tooltips working
+      .each(function (d) {
+        d3.select(this)
+          .append('title')
+          .text(
+            `${d.totalTraffic} trips (${d.departures} departures, ${d.arrivals} arrivals)`,
+          );
+      });
+
+    function updatePositions() {
+      circles
+        .attr('cx', (d) => getCoords(d).cx)
+        .attr('cy', (d) => getCoords(d).cy);
+    }
+
+    updatePositions();
+    map.on('move', updatePositions);
+    map.on('zoom', updatePositions);
+    map.on('resize', updatePositions);
+    map.on('moveend', updatePositions);
+
+    // --- Slider elements (NOTE: no # in getElementById, and IDs must match HTML) ---
+    const timeSlider    = document.getElementById('time-filter');
+    const selectedTime  = document.getElementById('time-display');
+    const anyTimeLabel  = document.getElementById('time-any');
+
+    function updateTimeDisplayAndFilter() {
+      const timeFilter = Number(timeSlider.value);
+
+      if (timeFilter === -1) {
+        selectedTime.textContent = '';
+        anyTimeLabel.style.display = 'block';
+        radiusScale.range([0, 25]); // default range
+      } else {
+        selectedTime.textContent = formatTime(timeFilter);
+        anyTimeLabel.style.display = 'none';
+        radiusScale.range([3, 50]); // emphasize filtered state
+      }
+
+      // Filter trips and recompute per-station traffic
+      const filteredTrips = filterTripsByTime(trips, timeFilter);
+      computeStationTraffic(stations, filteredTrips);
+
+      // Update radii and tooltip text
+      circles
+        .attr('r', (d) => radiusScale(d.totalTraffic))
+        .each(function (d) {
+          d3.select(this)
+            .select('title')
+            .text(
+              `${d.totalTraffic} trips (${d.departures} departures, ${d.arrivals} arrivals)`,
+            );
+        });
+    }
+
+    // Wire up slider
+    if (timeSlider) {
+      timeSlider.addEventListener('input', updateTimeDisplayAndFilter);
+      updateTimeDisplayAndFilter(); // initial render
+    } else {
+      console.warn('Time slider element not found');
+    }
 
   } catch (error) {
-    console.error('Error loading JSON:', error); // Handle errors
+    console.error('Error loading station or traffic data:', error);
   }
-  
-  
-
-});
-
-
+})
 // Check that Mapbox GL JS is loaded
 console.log('Mapbox GL JS Loaded:', mapboxgl);

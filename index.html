@@ -15,10 +15,27 @@
 />
 
   </head>
-  <body>
-    <h1>🚴🏼‍♀️ Bikewatching</h1>
+    <body>
+    <header>
+      <h1>🚴🏼‍♀️ Bikewatching</h1>
+
+      <label for="time-filter">
+        Filter by time:
+        <input
+          id="time-filter"
+          type="range"
+          min="-1"
+          max="1440"
+          value="-1"
+        />
+        <time id="time-display"></time>
+        <em id="time-any">(any time)</em>
+      </label>
+    </header>
+
     <div id="map">
-  <svg></svg>
+      <svg></svg>
     </div>
   </body>
+
 </html>
