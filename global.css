@@ -1,3 +1,17 @@
+:root {
+  --color-arrivals: steelblue;     /* steel blue */
+  --color-departures: darkorange;   /* dark orange */
+}
+
+/* Compute color on each legend item, not at :root */
+.legend-item {
+  --color: color-mix(
+    in oklch,
+    var(--color-departures) calc(100% * var(--departure-ratio)),
+    var(--color-arrivals)
+    );
+}
+
 body {
   font: 100%/1.5 system-ui, sans-serif;
   display: flex;
@@ -28,4 +42,39 @@ header label em {
 header label em {
   color: #777;
   font-style: italic;
+}
+
+/* Legend container */
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;          /* big gap between items */
+  margin-block: 1rem;   /* space above/below legend */
+  padding: 0 1rem;
+  font-size: 0.85rem;
+}
+
+/* "Legend:" label */
+.legend-title {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: #555;
+}
+
+/* Each legend item: swatch + label */
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;         /* smaller gap than parent (.legend) */
+}
+
+/* Swatch circle before the label */
+.legend-item::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--color);      /* uses --departure-ratio from inline style */
+  border: 1px solid rgba(0, 0, 0, 0.2);
 }

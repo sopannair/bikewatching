@@ -124,6 +124,8 @@ map.on('load', async () => {
 
     // --- Initial traffic using ALL trips ---
     computeStationTraffic(stations, trips);
+    let stationFlow = d3.scaleQuantize().domain([0, 1]).range([0, 0.5, 1]);
+
 
     // --- Radius scale ---
     const radiusScale = d3
@@ -150,7 +152,11 @@ map.on('load', async () => {
           .text(
             `${d.totalTraffic} trips (${d.departures} departures, ${d.arrivals} arrivals)`,
           );
-      });
+
+      })
+      .style('--departure-ratio', (d) =>
+        stationFlow(d.departures / d.totalTraffic),
+    );
 
     function updatePositions() {
       circles
@@ -195,7 +201,10 @@ map.on('load', async () => {
             .text(
               `${d.totalTraffic} trips (${d.departures} departures, ${d.arrivals} arrivals)`,
             );
-        });
+        })
+        .style('--departure-ratio', (d) =>
+            stationFlow(d.departures / d.totalTraffic),
+        );
     }
 
     // Wire up slider
