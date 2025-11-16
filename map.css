@@ -14,4 +14,16 @@ body {
   height: 100%; /* Adjust height to your desired size */
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Optional: subtle shadow for effect */
   border-radius: 8px; /* Optional: rounded corners */
+
+}
+
+#map svg {
+  /* background: yellow; */
+  /* opacity: 50%; */
+  width: 100%; /* Adjust width to your desired size */
+  height: 100%; /* Adjust height to your desired size */
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  
 }
